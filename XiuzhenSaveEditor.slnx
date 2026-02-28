@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="XiuzhenSaveEditor.Core/XiuzhenSaveEditor.Core.csproj" />
+  <Project Path="XiuzhenSaveEditor.Tests/XiuzhenSaveEditor.Tests.csproj" />
+  <Project Path="XiuzhenSaveEditor/XiuzhenSaveEditor.csproj" />
+</Solution>
