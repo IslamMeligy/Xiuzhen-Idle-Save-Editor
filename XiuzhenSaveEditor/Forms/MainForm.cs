@@ -481,7 +481,7 @@ public class MainForm : Form
         }
 
         _saveFolder = folder;
-        _saveSlot = _slotBox.SelectedIndex;
+        _saveSlot = int.TryParse(_slotBox.SelectedItem?.ToString(), out int slot) ? slot : 0;
 
         try
         {
@@ -534,8 +534,8 @@ public class MainForm : Form
         foreach (int id in SaveDataParser.CultivationIds)
         {
             var rec = SaveDataParser.FindById(_saveRecords, id);
-            string layer = rec?.GetValue(1) ?? "0";
-            string floor = rec?.GetValue(24) ?? "0";
+            string layer = rec?.GetValue(SaveDataParser.PosLayer) ?? "0";
+            string floor = rec?.GetValue(SaveDataParser.PosFloor) ?? "0";
             string mystic = SaveDataParser.MysticNames.TryGetValue(id, out string? mn) ? mn : $"Mystic {id}";
             string name = SaveDataParser.CultivationNames.TryGetValue(id, out string? cn) ? cn : $"Cultivation {id}";
             _cultivationGrid.Rows.Add(id, name, layer, mystic, floor);
@@ -548,26 +548,26 @@ public class MainForm : Form
                 tb.Text = SaveDataParser.FindById(_saveRecords, recordId)?.GetValue(pos) ?? "0";
         }
 
-        SetBox("Money",            17, 22);
-        SetBox("SoulCrystal",      15, 22);
-        SetBox("CultivationValue", 16, 22);
+        SetBox("Money",            17, SaveDataParser.PosMainValue);
+        SetBox("SoulCrystal",      15, SaveDataParser.PosMainValue);
+        SetBox("CultivationValue", 16, SaveDataParser.PosMainValue);
 
-        SetBox("TalentHealth",  5, 22);
-        SetBox("TalentAttack",  6, 22);
-        SetBox("TalentDefense", 7, 22);
-        SetBox("TalentOverall", 8, 22);
-        SetBox("TalentChance",  9, 22);
+        SetBox("TalentHealth",  5, SaveDataParser.PosMainValue);
+        SetBox("TalentAttack",  6, SaveDataParser.PosMainValue);
+        SetBox("TalentDefense", 7, SaveDataParser.PosMainValue);
+        SetBox("TalentOverall", 8, SaveDataParser.PosMainValue);
+        SetBox("TalentChance",  9, SaveDataParser.PosMainValue);
 
-        SetBox("PetExp",           3, 17);
-        SetBox("PetHealthTalent",  4, 17);
-        SetBox("PetAttackTalent",  5, 17);
-        SetBox("PetDefenseTalent", 6, 17);
+        SetBox("PetExp",           3, SaveDataParser.PosSpecial);
+        SetBox("PetHealthTalent",  4, SaveDataParser.PosSpecial);
+        SetBox("PetAttackTalent",  5, SaveDataParser.PosSpecial);
+        SetBox("PetDefenseTalent", 6, SaveDataParser.PosSpecial);
 
-        SetBox("ExpGathering", 24, 22);
-        SetBox("ExpMining",    26, 22);
-        SetBox("ExpForging",   28, 22);
-        SetBox("ExpAlchemy",   30, 22);
-        SetBox("ExpTaming",    32, 22);
+        SetBox("ExpGathering", 24, SaveDataParser.PosMainValue);
+        SetBox("ExpMining",    26, SaveDataParser.PosMainValue);
+        SetBox("ExpForging",   28, SaveDataParser.PosMainValue);
+        SetBox("ExpAlchemy",   30, SaveDataParser.PosMainValue);
+        SetBox("ExpTaming",    32, SaveDataParser.PosMainValue);
     }
 
     private void LoadDisciples()
@@ -638,8 +638,8 @@ public class MainForm : Form
             if (!int.TryParse(row.Cells["ID"].Value?.ToString(), out int id)) continue;
             var rec = SaveDataParser.FindById(_saveRecords, id);
             if (rec == null) continue;
-            rec.SetValue(1,  row.Cells["Layer"].Value?.ToString() ?? rec.GetValue(1));
-            rec.SetValue(24, row.Cells["Floor"].Value?.ToString() ?? rec.GetValue(24));
+            rec.SetValue(SaveDataParser.PosLayer,  row.Cells["Layer"].Value?.ToString() ?? rec.GetValue(SaveDataParser.PosLayer));
+            rec.SetValue(SaveDataParser.PosFloor, row.Cells["Floor"].Value?.ToString() ?? rec.GetValue(SaveDataParser.PosFloor));
         }
 
         // Write back stat box changes
@@ -650,26 +650,26 @@ public class MainForm : Form
             rec?.SetValue(pos, tb.Text.Trim());
         }
 
-        ReadBox("Money",            17, 22);
-        ReadBox("SoulCrystal",      15, 22);
-        ReadBox("CultivationValue", 16, 22);
+        ReadBox("Money",            17, SaveDataParser.PosMainValue);
+        ReadBox("SoulCrystal",      15, SaveDataParser.PosMainValue);
+        ReadBox("CultivationValue", 16, SaveDataParser.PosMainValue);
 
-        ReadBox("TalentHealth",  5, 22);
-        ReadBox("TalentAttack",  6, 22);
-        ReadBox("TalentDefense", 7, 22);
-        ReadBox("TalentOverall", 8, 22);
-        ReadBox("TalentChance",  9, 22);
+        ReadBox("TalentHealth",  5, SaveDataParser.PosMainValue);
+        ReadBox("TalentAttack",  6, SaveDataParser.PosMainValue);
+        ReadBox("TalentDefense", 7, SaveDataParser.PosMainValue);
+        ReadBox("TalentOverall", 8, SaveDataParser.PosMainValue);
+        ReadBox("TalentChance",  9, SaveDataParser.PosMainValue);
 
-        ReadBox("PetExp",           3, 17);
-        ReadBox("PetHealthTalent",  4, 17);
-        ReadBox("PetAttackTalent",  5, 17);
-        ReadBox("PetDefenseTalent", 6, 17);
+        ReadBox("PetExp",           3, SaveDataParser.PosSpecial);
+        ReadBox("PetHealthTalent",  4, SaveDataParser.PosSpecial);
+        ReadBox("PetAttackTalent",  5, SaveDataParser.PosSpecial);
+        ReadBox("PetDefenseTalent", 6, SaveDataParser.PosSpecial);
 
-        ReadBox("ExpGathering", 24, 22);
-        ReadBox("ExpMining",    26, 22);
-        ReadBox("ExpForging",   28, 22);
-        ReadBox("ExpAlchemy",   30, 22);
-        ReadBox("ExpTaming",    32, 22);
+        ReadBox("ExpGathering", 24, SaveDataParser.PosMainValue);
+        ReadBox("ExpMining",    26, SaveDataParser.PosMainValue);
+        ReadBox("ExpForging",   28, SaveDataParser.PosMainValue);
+        ReadBox("ExpAlchemy",   30, SaveDataParser.PosMainValue);
+        ReadBox("ExpTaming",    32, SaveDataParser.PosMainValue);
 
         SaveDataParser.Save(path, _saveRecords);
     }
