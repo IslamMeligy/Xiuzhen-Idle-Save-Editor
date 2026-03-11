@@ -10,12 +10,18 @@ namespace XiuzhenSaveEditor.Parsers;
 ///   0  = ID
 ///   1  = Layer (for cultivation IDs 1-9)
 ///   4  = Base attribute
-///   17 = Special value (pet stats for IDs 3-6)
-///   22 = Main value (player talents, money, resources)
+///   17 = Special value (Pet EXP / Pet talent fields on IDs 3-6)
+///   22 = Main value (player talents, money, resources, experiences)
 ///   24 = Floor (mystic realm max floor, for IDs 1-9)
 /// </summary>
 public static class SaveDataParser
 {
+    public const int PosId = 0;
+    public const int PosLayer = 1;
+    public const int PosSpecial = 17;
+    public const int PosMainValue = 22;
+    public const int PosFloor = 24;
+
     /// <summary>Known cultivation technique IDs (1-9).</summary>
     public static readonly int[] CultivationIds = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 

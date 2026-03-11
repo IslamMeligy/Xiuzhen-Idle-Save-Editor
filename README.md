@@ -21,7 +21,21 @@ Save files are stored in the game's save directory. The number prefix (e.g. `0`,
 | `{slot}svzb.dat` | Lifestones |
 | `{slot}svwp.dat` | Inventory |
 | `{slot}svmp.dat` | Sect data |
+| `{slot}svdj.dat` | Unknown / not yet mapped |
+| `{slot}svgw.dat` | Unknown / not yet mapped |
+| `{slot}svrw.dat` | Unknown / not yet mapped |
 | `1global.dat`    | Global game data |
+
+`{slot}` is the save index prefix in file names (for example: `0svjy.dat` is slot 0, `1svjy.dat` is slot 1).
+
+### `save.dat` key field positions used by this editor
+
+The editor currently uses these confirmed value positions:
+
+- Index `1`: cultivation layer (IDs 1-9)
+- Index `24`: mystic max floor (IDs 1-9)
+- Index `17`: pet-specific values (IDs 3-6)
+- Index `22`: main values (money/talents/experiences on specific IDs)
 
 ## Usage
 
