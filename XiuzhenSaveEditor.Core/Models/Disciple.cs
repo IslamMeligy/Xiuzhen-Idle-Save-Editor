@@ -29,11 +29,12 @@ public static class TalentGrade
 ///               [Chance],[Building],[Herbs],[Mining],[Hunting],[Taming],[External],
 ///               [Alchemy],[Weapon],[Position],[Task],[?],[?],[Build],[Herbs],[Mine],
 ///               [Hunt],[Tame],[External],[Dan],[Weapon]
+/// Additional fields beyond the mapped range are preserved as-is.
 /// </summary>
 public class Disciple
 {
     // Raw parsed values - index matches column position
-    public List<string> RawValues { get; set; } = new();
+    public List<C2Value> RawValues { get; set; } = new();
 
     public string Realm      => Get(0);
     public string FamilyName => Get(1);
@@ -86,15 +87,27 @@ public class Disciple
     public string DanTalentGradeStr      => TalentGrade.GetGrade(DanTalent);
     public string WeaponTalentGradeStr   => TalentGrade.GetGrade(WeaponTalent);
 
-    private string Get(int i) => i < RawValues.Count ? RawValues[i] : "";
+    public bool IsEmpty =>
+        RawValues.All(v => string.IsNullOrWhiteSpace(v.Text) || v.Text == "0");
+
+    public string GetRaw(int index) => Get(index);
+
+    private string Get(int i) => i < RawValues.Count ? RawValues[i].Text : "";
 
     public void Set(int index, string value)
     {
         while (RawValues.Count <= index)
-            RawValues.Add("");
-        RawValues[index] = value;
+            RawValues.Add(CreateDefaultValue(index));
+
+        RawValues[index].SetText(value);
     }
 
     public string ToFileLine() =>
-        "[" + string.Join("],[", RawValues) + "]";
+        "[" + string.Join("],[", RawValues.Select(v => v.Text)) + "]";
+
+    private static C2Value CreateDefaultValue(int index) => index switch
+    {
+        1 or 2 or 17 or 18 => C2Value.CreateString(),
+        _ => C2Value.CreateNumber()
+    };
 }

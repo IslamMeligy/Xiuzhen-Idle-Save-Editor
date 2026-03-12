@@ -1,31 +1,15 @@
-namespace XiuzhenSaveEditor.Models;
+﻿namespace XiuzhenSaveEditor.Models;
 
 /// <summary>
 /// Represents a soul/farm entry from the svlz.dat file.
-/// Each line holds 8 bracket groups, each containing 3 comma-separated sub-values.
-///
-/// Format per line:
-///   [SID,?,0],[SQ,?,FID],[ST1,?,LSU],[ST2,?,LS],[ST3,0,FA],[ST4,0,"?"],[ST5,0,"HN"],[0,0,"?"]
-///
-/// SID  = Soul ID
-/// SQ   = Soul Quantity
-/// FID  = Fruit ID
-/// ST1  = Spirit stat
-/// ST2  = Resonance stat
-/// ST3  = Strength stat
-/// ST4  = Stability stat
-/// ST5  = Fortune stat
-/// LSU  = Lifespan Used (months)
-/// LS   = Lifespan (months)
-/// FA   = Fruit Age (months)
-/// HN   = Harvested fruit name
+/// Each logical record is backed by c2array groups, each containing three sub-values.
 /// </summary>
 public class SoulRecord
 {
     /// <summary>
-    /// Raw bracket groups. Each entry is a list of sub-values within one bracket group.
+    /// Raw c2array groups. Each entry is a list of sub-values within one group.
     /// </summary>
-    public List<List<string>> Groups { get; set; } = new();
+    public List<List<C2Value>> Groups { get; set; } = new();
 
     // Convenience accessors
     public string SoulId       => GetSub(0, 0);
@@ -41,25 +25,31 @@ public class SoulRecord
     public string Fortune      => GetSub(6, 0);  // ST5
     public string HarvestName  => GetSub(6, 2);  // HN
 
+    public bool IsEmpty =>
+        string.IsNullOrWhiteSpace(SoulId) || SoulId == "0";
+
     private string GetSub(int group, int sub)
     {
         if (group < Groups.Count && sub < Groups[group].Count)
-            return Groups[group][sub];
+            return Groups[group][sub].Text;
         return "";
     }
 
     public void SetSub(int group, int sub, string value)
     {
         while (Groups.Count <= group)
-            Groups.Add(new List<string>());
+            Groups.Add(new List<C2Value>());
         while (Groups[group].Count <= sub)
-            Groups[group].Add("0");
-        Groups[group][sub] = value;
+            Groups[group].Add(CreateDefaultValue(group, Groups[group].Count));
+        Groups[group][sub].SetText(value);
     }
 
     public string ToFileLine()
     {
-        var parts = Groups.Select(g => string.Join(",", g));
+        var parts = Groups.Select(g => string.Join(",", g.Select(v => v.Text)));
         return "[" + string.Join("],[", parts) + "]";
     }
+
+    private static C2Value CreateDefaultValue(int group, int sub) =>
+        sub == 2 && group >= 5 ? C2Value.CreateString() : C2Value.CreateNumber();
 }

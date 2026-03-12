@@ -22,6 +22,7 @@ public class MainForm : Form
     private List<SoulRecord> _souls = new();
     private List<LifestoneRecord> _lifestones = new();
     private List<InventoryRecord> _inventory = new();
+    private List<SectRecord> _sects = new();
 
     private ItemDatabase _itemDb = null!;
 
@@ -49,6 +50,7 @@ public class MainForm : Form
 
     // Inventory tab
     private DataGridView _inventoryGrid = null!;
+    private DataGridView _sectGrid = null!;
 
     public MainForm()
     {
@@ -150,6 +152,7 @@ public class MainForm : Form
 
         _tabs.TabPages.Add(BuildMainSaveTab());
         _tabs.TabPages.Add(BuildDisciplesTab());
+        _tabs.TabPages.Add(BuildSectTab());
         _tabs.TabPages.Add(BuildSoulsTab());
         _tabs.TabPages.Add(BuildLifestonesTab());
         _tabs.TabPages.Add(BuildInventoryTab());
@@ -340,51 +343,7 @@ public class MainForm : Form
 
     private void AddDiscipleColumns()
     {
-        var columns = new[]
-        {
-            ("Realm",       "Realm",        false),
-            ("FamilyName",  "Family Name",  false),
-            ("Name",        "Name",         false),
-            ("UUID",        "UUID",         true),
-            ("QiSense",     "Qi-Sense",     false),
-            ("QiGrade",     "QS Grade",     true),
-            ("God",         "God Sense",    false),
-            ("GodGrade",    "God Grade",    true),
-            ("Roots",       "Roots",        false),
-            ("RootsGrade",  "Roots Grade",  true),
-            ("Talent",      "Talent",       false),
-            ("TalentGrade", "Talent Grade", true),
-            ("Chance",      "Chance",       false),
-            ("ChanceGrade", "Chance Grade", true),
-            ("Building",    "Building",     false),
-            ("Herbs",       "Herbs",        false),
-            ("Mining",      "Mining",       false),
-            ("Hunting",     "Hunting",      false),
-            ("Taming",      "Taming",       false),
-            ("External",    "External",     false),
-            ("Alchemy",     "Alchemy",      false),
-            ("Weapon",      "Weapon",       false),
-            ("Position",    "Position",     false),
-            ("Task",        "Task",         false),
-            ("BuildTalent",       "Build Talent",    false),
-            ("BuildGrade",        "Build Grade",     true),
-            ("HerbsTalent",       "Herbs Talent",    false),
-            ("HerbsGrade",        "Herbs Grade",     true),
-            ("MineTalent",        "Mine Talent",     false),
-            ("MineGrade",         "Mine Grade",      true),
-            ("HuntTalent",        "Hunt Talent",     false),
-            ("HuntGrade",         "Hunt Grade",      true),
-            ("TameTalent",        "Tame Talent",     false),
-            ("TameGrade",         "Tame Grade",      true),
-            ("ExternalTalent",    "External Talent", false),
-            ("ExternalGrade",     "External Grade",  true),
-            ("DanTalent",         "Dan Talent",      false),
-            ("DanGrade",          "Dan Grade",       true),
-            ("WeaponTalent",      "Weapon Talent",   false),
-            ("WeaponGrade",       "Weapon Grade",    true),
-        };
-
-        foreach (var (name, header, ro) in columns)
+        foreach (var (name, header, ro) in DiscipleColumns())
         {
             _disciplesGrid.Columns.Add(new DataGridViewTextBoxColumn
             {
@@ -395,8 +354,209 @@ public class MainForm : Form
         }
     }
 
-    // ── Tab: Souls ────────────────────────────────────────────────────────────
+    private static IEnumerable<(string name, string header, bool readOnly)> DiscipleColumns()
+    {
+        var columns = new List<(string name, string header, bool readOnly)>
+        {
+            ("Realm",       "Realm",           false),
+            ("FamilyName",  "Family Name",     false),
+            ("Name",        "Name",            false),
+            ("UUID",        "UUID",            true),
+            ("QiSense",     "Qi-Sense",        false),
+            ("QiGrade",     "QS Grade",        true),
+            ("God",         "God Sense",       false),
+            ("GodGrade",    "God Grade",       true),
+            ("Roots",       "Roots",           false),
+            ("RootsGrade",  "Roots Grade",     true),
+            ("Talent",      "Talent",          false),
+            ("TalentGrade", "Talent Grade",    true),
+            ("Chance",      "Chance",          false),
+            ("ChanceGrade", "Chance Grade",    true),
+            ("Building",    "Building",        false),
+            ("Herbs",       "Herbs",           false),
+            ("Mining",      "Mining",          false),
+            ("Hunting",     "Hunting",         false),
+            ("Taming",      "Taming",          false),
+            ("External",    "External",        false),
+            ("Alchemy",     "Alchemy",         false),
+            ("Weapon",      "Weapon",          false),
+            ("Position",    "Position",        false),
+            ("Task",        "Task",            false),
+            ("Unknown19",   "Raw 19",          false),
+            ("Unknown20",   "Raw 20",          false),
+            ("BuildTalent",    "Build Talent",    false),
+            ("BuildGrade",     "Build Grade",     true),
+            ("HerbsTalent",    "Herbs Talent",    false),
+            ("HerbsGrade",     "Herbs Grade",     true),
+            ("MineTalent",     "Mine Talent",     false),
+            ("MineGrade",      "Mine Grade",      true),
+            ("HuntTalent",     "Hunt Talent",     false),
+            ("HuntGrade",      "Hunt Grade",      true),
+            ("TameTalent",     "Tame Talent",     false),
+            ("TameGrade",      "Tame Grade",      true),
+            ("ExternalTalent", "External Talent", false),
+            ("ExternalGrade",  "External Grade",  true),
+            ("DanTalent",      "Dan Talent",      false),
+            ("DanGrade",       "Dan Grade",       true),
+            ("WeaponTalent",   "Weapon Talent",   false),
+            ("WeaponGrade",    "Weapon Grade",    true),
+        };
 
+        for (int i = 29; i <= 50; i++)
+            columns.Add(($"Raw{i}", $"Raw {i}", false));
+
+        return columns;
+    }
+
+    private static object[] DiscipleDisplayValues(Disciple disciple)
+    {
+        var values = new List<object>
+        {
+            disciple.Realm, disciple.FamilyName, disciple.Name, disciple.UUID,
+            disciple.QiSense, disciple.QiSenseGradeStr,
+            disciple.God, disciple.GodGradeStr,
+            disciple.Roots, disciple.RootsGradeStr,
+            disciple.Talent, disciple.TalentGradeStr,
+            disciple.Chance, disciple.ChanceGradeStr,
+            disciple.Building, disciple.Herbs, disciple.Mining, disciple.Hunting,
+            disciple.Taming, disciple.External, disciple.Alchemy, disciple.Weapon,
+            disciple.Position, disciple.Task,
+            disciple.Unknown1, disciple.Unknown2,
+            disciple.BuildTalent, disciple.BuildTalentGradeStr,
+            disciple.HerbsTalent, disciple.HerbsTalentGradeStr,
+            disciple.MineTalent, disciple.MineTalentGradeStr,
+            disciple.HuntTalent, disciple.HuntTalentGradeStr,
+            disciple.TameTalent, disciple.TameTalentGradeStr,
+            disciple.ExternalTalent, disciple.ExternalTalentGradeStr,
+            disciple.DanTalent, disciple.DanTalentGradeStr,
+            disciple.WeaponTalent, disciple.WeaponTalentGradeStr,
+        };
+
+        for (int i = 29; i <= 50; i++)
+            values.Add(disciple.GetRaw(i));
+
+        return values.ToArray();
+    }
+
+    private static readonly (int ModelIndex, string GridCol)[] EditableDiscipleColumns =
+    {
+        (0, "Realm"),
+        (1, "FamilyName"),
+        (2, "Name"),
+        (4, "QiSense"),
+        (5, "God"),
+        (6, "Roots"),
+        (7, "Talent"),
+        (8, "Chance"),
+        (9, "Building"),
+        (10, "Herbs"),
+        (11, "Mining"),
+        (12, "Hunting"),
+        (13, "Taming"),
+        (14, "External"),
+        (15, "Alchemy"),
+        (16, "Weapon"),
+        (17, "Position"),
+        (18, "Task"),
+        (19, "Unknown19"),
+        (20, "Unknown20"),
+        (21, "BuildTalent"),
+        (22, "HerbsTalent"),
+        (23, "MineTalent"),
+        (24, "HuntTalent"),
+        (25, "TameTalent"),
+        (26, "ExternalTalent"),
+        (27, "DanTalent"),
+        (28, "WeaponTalent"),
+        (29, "Raw29"),
+        (30, "Raw30"),
+        (31, "Raw31"),
+        (32, "Raw32"),
+        (33, "Raw33"),
+        (34, "Raw34"),
+        (35, "Raw35"),
+        (36, "Raw36"),
+        (37, "Raw37"),
+        (38, "Raw38"),
+        (39, "Raw39"),
+        (40, "Raw40"),
+        (41, "Raw41"),
+        (42, "Raw42"),
+        (43, "Raw43"),
+        (44, "Raw44"),
+        (45, "Raw45"),
+        (46, "Raw46"),
+        (47, "Raw47"),
+        (48, "Raw48"),
+        (49, "Raw49"),
+        (50, "Raw50"),
+    };
+
+    private TabPage BuildSectTab()
+    {
+        var page = new TabPage("Sect Data (svmp.dat)");
+
+        var info = new Label
+        {
+            Text = "Raw c2array view for sect data. Column names use the original group/subvalue positions.",
+            Dock = DockStyle.Top,
+            Height = 22,
+            ForeColor = Color.DarkBlue
+        };
+
+        _sectGrid = new DataGridView
+        {
+            Dock = DockStyle.Fill,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells,
+            AllowUserToAddRows = false,
+            AllowUserToDeleteRows = false,
+            RowHeadersVisible = false,
+            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            BackgroundColor = SystemColors.Window,
+            ScrollBars = ScrollBars.Both
+        };
+
+        page.Controls.Add(_sectGrid);
+        page.Controls.Add(info);
+        return page;
+    }
+
+    private void EnsureSectColumns()
+    {
+        _sectGrid.Columns.Clear();
+        _sectGrid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            Name = "RowIndex",
+            HeaderText = "Row",
+            ReadOnly = true,
+        });
+
+        int maxGroups = 0;
+        int maxDepth = 0;
+        foreach (var sect in _sects)
+        {
+            maxGroups = Math.Max(maxGroups, sect.Groups.Count);
+            foreach (var group in sect.Groups)
+                maxDepth = Math.Max(maxDepth, group.Count);
+        }
+
+        for (int group = 0; group < maxGroups; group++)
+        {
+            for (int sub = 0; sub < maxDepth; sub++)
+            {
+                var column = new DataGridViewTextBoxColumn
+                {
+                    Name = SectColumnName(group, sub),
+                    HeaderText = $"G{group:D2}[{sub}]",
+                    ReadOnly = false,
+                    Tag = (group, sub)
+                };
+                _sectGrid.Columns.Add(column);
+            }
+        }
+    }
+
+    private static string SectColumnName(int group, int sub) => $"G{group:D2}_{sub}";
     private TabPage BuildSoulsTab()
     {
         var page = new TabPage("Souls/Farm (svlz.dat)");
@@ -564,6 +724,7 @@ public class MainForm : Form
         {
             LoadMainSave();
             LoadDisciples();
+            LoadSectData();
             LoadSouls();
             LoadLifestones();
             LoadInventory();
@@ -587,6 +748,7 @@ public class MainForm : Form
         {
             SaveMainSave();
             SaveDisciples();
+            SaveSectData();
             SaveSouls();
             SaveLifestones();
             SaveInventory();
@@ -655,47 +817,57 @@ public class MainForm : Form
         _disciples = DiscipleParser.Parse(path);
 
         _disciplesGrid.Rows.Clear();
-        foreach (var d in _disciples)
+        foreach (var d in _disciples.Where(d => !d.IsEmpty))
         {
-            _disciplesGrid.Rows.Add(
-                d.Realm, d.FamilyName, d.Name, d.UUID,
-                d.QiSense, d.QiSenseGradeStr,
-                d.God, d.GodGradeStr,
-                d.Roots, d.RootsGradeStr,
-                d.Talent, d.TalentGradeStr,
-                d.Chance, d.ChanceGradeStr,
-                d.Building, d.Herbs, d.Mining, d.Hunting,
-                d.Taming, d.External, d.Alchemy, d.Weapon,
-                d.Position, d.Task,
-                d.BuildTalent, d.BuildTalentGradeStr,
-                d.HerbsTalent, d.HerbsTalentGradeStr,
-                d.MineTalent, d.MineTalentGradeStr,
-                d.HuntTalent, d.HuntTalentGradeStr,
-                d.TameTalent, d.TameTalentGradeStr,
-                d.ExternalTalent, d.ExternalTalentGradeStr,
-                d.DanTalent, d.DanTalentGradeStr,
-                d.WeaponTalent, d.WeaponTalentGradeStr
-            );
+            int rowIndex = _disciplesGrid.Rows.Add(DiscipleDisplayValues(d));
+            _disciplesGrid.Rows[rowIndex].Tag = d;
         }
     }
 
+    private void LoadSectData()
+    {
+        string path = SlotFile("svmp.dat");
+        _sects = SectParser.Parse(path);
+
+        EnsureSectColumns();
+        _sectGrid.Rows.Clear();
+
+        for (int recordIndex = 0; recordIndex < _sects.Count; recordIndex++)
+        {
+            var sect = _sects[recordIndex];
+            if (sect.IsEmpty)
+                continue;
+
+            var values = new object[_sectGrid.Columns.Count];
+            values[0] = recordIndex;
+            foreach (DataGridViewColumn column in _sectGrid.Columns)
+            {
+                if (column.Tag is ValueTuple<int, int> mapping)
+                    values[column.Index] = sect.GetSub(mapping.Item1, mapping.Item2);
+            }
+
+            int rowIndex = _sectGrid.Rows.Add(values);
+            _sectGrid.Rows[rowIndex].Tag = sect;
+        }
+    }
     private void LoadSouls()
     {
         string path = SlotFile("svlz.dat");
         _souls = SoulParser.Parse(path);
 
         _soulsGrid.Rows.Clear();
-        foreach (var s in _souls)
+        foreach (var s in _souls.Where(s => !s.IsEmpty))
         {
             int.TryParse(s.SoulId, out int soulId);
             int.TryParse(s.FruitId, out int fruitId);
-            _soulsGrid.Rows.Add(
+            int rowIndex = _soulsGrid.Rows.Add(
                 s.SoulId, _itemDb.GetName(soulId),
                 s.FruitId, fruitId > 0 ? _itemDb.GetName(fruitId) : "",
                 s.Spirit, s.Resonance, s.Strength, s.Stability, s.Fortune,
                 s.LifespanUsed, s.Lifespan,
-                s.FruitAge, BracketParser.StripQuotes(s.HarvestName)
+                s.FruitAge, s.HarvestName
             );
+            _soulsGrid.Rows[rowIndex].Tag = s;
         }
     }
 
@@ -705,13 +877,14 @@ public class MainForm : Form
         _lifestones = LifestoneParser.Parse(path);
 
         _lifestonesGrid.Rows.Clear();
-        foreach (var ls in _lifestones)
+        foreach (var ls in _lifestones.Where(ls => !ls.IsEmpty))
         {
-            _lifestonesGrid.Rows.Add(
+            int rowIndex = _lifestonesGrid.Rows.Add(
                 ls.LifestoneId, ls.Level,
                 ls.Effect1Id, ls.Effect2Id, ls.Effect3Id, ls.Effect4Id, ls.Effect5Id,
                 ls.Effect1Pct, ls.Effect2Pct, ls.Effect3Pct, ls.Effect4Pct, ls.Effect5Pct
             );
+            _lifestonesGrid.Rows[rowIndex].Tag = ls;
         }
     }
 
@@ -721,16 +894,17 @@ public class MainForm : Form
         _inventory = InventoryParser.Parse(path);
 
         _inventoryGrid.Rows.Clear();
-        foreach (var inv in _inventory)
+        foreach (var inv in _inventory.Where(inv => !inv.IsEmpty))
         {
             int.TryParse(inv.ItemId, out int itemId);
             var item = _itemDb.GetById(itemId);
-            _inventoryGrid.Rows.Add(
+            int rowIndex = _inventoryGrid.Rows.Add(
                 inv.ItemId,
                 item?.Name ?? $"Unknown ({itemId})",
                 item?.Category ?? "",
                 inv.Quantity
             );
+            _inventoryGrid.Rows[rowIndex].Tag = inv;
         }
     }
 
@@ -788,39 +962,50 @@ public class MainForm : Form
         string path = SlotFile("svjy.dat");
         if (!File.Exists(path)) return;
 
-        // Sync grid editable columns back to model
-        // Editable columns: Realm(0), FamilyName(1), Name(2), QiSense(4), God(5), Roots(6),
-        //   Talent(7), Chance(8), Building(9), Herbs(10), Mining(11), Hunting(12),
-        //   Taming(13), External(14), Alchemy(15), Weapon(16), Position(17), Task(18)
-        int[] editableModelCols = { 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28 };
-        // Corresponding grid column names (skipping grade columns which are read-only)
-        string[] editableGridCols = {
-            "Realm", "FamilyName", "Name", "QiSense", "God", "Roots",
-            "Talent", "Chance", "Building", "Herbs", "Mining", "Hunting",
-            "Taming", "External", "Alchemy", "Weapon", "Position", "Task",
-            "BuildTalent", "HerbsTalent", "MineTalent", "HuntTalent",
-            "TameTalent", "ExternalTalent", "DanTalent", "WeaponTalent"
-        };
-
-        for (int i = 0; i < _disciples.Count && i < _disciplesGrid.Rows.Count; i++)
+        foreach (DataGridViewRow row in _disciplesGrid.Rows)
         {
-            for (int j = 0; j < editableModelCols.Length; j++)
+            if (row.Tag is not Disciple disciple)
+                continue;
+
+            foreach (var (modelIndex, gridCol) in EditableDiscipleColumns)
             {
-                string? val = _disciplesGrid.Rows[i].Cells[editableGridCols[j]].Value?.ToString();
+                string? val = row.Cells[gridCol].Value?.ToString();
                 if (val != null)
-                    _disciples[i].Set(editableModelCols[j], val);
+                    disciple.Set(modelIndex, val);
             }
         }
 
         DiscipleParser.Save(path, _disciples);
     }
 
+    private void SaveSectData()
+    {
+        string path = SlotFile("svmp.dat");
+        if (!File.Exists(path)) return;
+
+        foreach (DataGridViewRow row in _sectGrid.Rows)
+        {
+            if (row.Tag is not SectRecord sect)
+                continue;
+
+            foreach (DataGridViewColumn column in _sectGrid.Columns)
+            {
+                if (column.Tag is not ValueTuple<int, int> mapping)
+                    continue;
+
+                string? val = row.Cells[column.Index].Value?.ToString();
+                if (val != null)
+                    sect.SetSub(mapping.Item1, mapping.Item2, val);
+            }
+        }
+
+        SectParser.Save(path, _sects);
+    }
     private void SaveSouls()
     {
         string path = SlotFile("svlz.dat");
         if (!File.Exists(path)) return;
 
-        // Sync editable grid fields back to soul records
         var colMappings = new (string gridCol, Action<SoulRecord, string> setter)[]
         {
             ("FruitID",     (s, v) => s.SetSub(1, 2, v)),
@@ -832,15 +1017,18 @@ public class MainForm : Form
             ("LifespanUsed",(s, v) => s.SetSub(2, 2, v)),
             ("Lifespan",    (s, v) => s.SetSub(3, 2, v)),
             ("FruitAge",    (s, v) => s.SetSub(4, 2, v)),
-            ("HarvestName", (s, v) => s.SetSub(6, 2, v.StartsWith('"') ? v : $"\"{v}\"")),
+            ("HarvestName", (s, v) => s.SetSub(6, 2, v)),
         };
 
-        for (int i = 0; i < _souls.Count && i < _soulsGrid.Rows.Count; i++)
+        foreach (DataGridViewRow row in _soulsGrid.Rows)
         {
+            if (row.Tag is not SoulRecord soul)
+                continue;
+
             foreach (var (col, setter) in colMappings)
             {
-                string? val = _soulsGrid.Rows[i].Cells[col].Value?.ToString();
-                if (val != null) setter(_souls[i], val);
+                string? val = row.Cells[col].Value?.ToString();
+                if (val != null) setter(soul, val);
             }
         }
 
@@ -854,7 +1042,7 @@ public class MainForm : Form
 
         var colMappings = new (string gridCol, Action<LifestoneRecord, string> setter)[]
         {
-            ("Level", (l, v) => l.SetSub(2, 1, v)),
+            ("Level", (l, v) => l.SetSub(1, 1, v)),
             ("EID1",  (l, v) => l.SetSub(3, 1, v)),
             ("EID2",  (l, v) => l.SetSub(4, 1, v)),
             ("EID3",  (l, v) => l.SetSub(5, 1, v)),
@@ -867,12 +1055,15 @@ public class MainForm : Form
             ("EP5",   (l, v) => l.SetSub(13, 1, v)),
         };
 
-        for (int i = 0; i < _lifestones.Count && i < _lifestonesGrid.Rows.Count; i++)
+        foreach (DataGridViewRow row in _lifestonesGrid.Rows)
         {
+            if (row.Tag is not LifestoneRecord stone)
+                continue;
+
             foreach (var (col, setter) in colMappings)
             {
-                string? val = _lifestonesGrid.Rows[i].Cells[col].Value?.ToString();
-                if (val != null) setter(_lifestones[i], val);
+                string? val = row.Cells[col].Value?.ToString();
+                if (val != null) setter(stone, val);
             }
         }
 
@@ -884,10 +1075,14 @@ public class MainForm : Form
         string path = SlotFile("svwp.dat");
         if (!File.Exists(path)) return;
 
-        for (int i = 0; i < _inventory.Count && i < _inventoryGrid.Rows.Count; i++)
+        foreach (DataGridViewRow row in _inventoryGrid.Rows)
         {
-            string? qty = _inventoryGrid.Rows[i].Cells["Quantity"].Value?.ToString();
-            if (qty != null) _inventory[i].SetSub(0, 1, qty);
+            if (row.Tag is not InventoryRecord inventoryRecord)
+                continue;
+
+            string? qty = row.Cells["Quantity"].Value?.ToString();
+            if (qty != null)
+                inventoryRecord.SetSub(1, 0, qty);
         }
 
         InventoryParser.Save(path, _inventory);
@@ -901,3 +1096,4 @@ public class MainForm : Form
         _statusLabel.BackColor = error ? Color.DarkRed : SystemColors.ControlDark;
     }
 }
+

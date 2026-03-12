@@ -1,3 +1,4 @@
+﻿using System.Globalization;
 using XiuzhenSaveEditor.Models;
 
 namespace XiuzhenSaveEditor.Parsers;
@@ -5,14 +6,9 @@ namespace XiuzhenSaveEditor.Parsers;
 /// <summary>
 /// Parses and serializes the save.dat file.
 ///
-/// Each data line is formatted as: [ID],[val1],[val2],...
-/// Key positions (0-indexed):
-///   0  = ID
-///   1  = Layer (for cultivation IDs 1-9)
-///   4  = Base attribute
-///   17 = Special value (Pet EXP / Pet talent fields on IDs 3-6)
-///   22 = Main value (player talents, money, resources, experiences)
-///   24 = Floor (mystic realm max floor, for IDs 1-9)
+/// The file is stored as a Construct c2array. The editor currently uses the first
+/// value inside each field cell to expose key positions such as layer, floor,
+/// pet stats, resources, and experiences.
 /// </summary>
 public static class SaveDataParser
 {
@@ -55,24 +51,19 @@ public static class SaveDataParser
 
     public static List<SaveRecord> Parse(string filePath)
     {
-        var records = new List<SaveRecord>();
-        if (!File.Exists(filePath)) return records;
+        var data = C2ArrayParser.Parse(filePath);
+        var records = new List<SaveRecord>(data.Count);
 
-        foreach (string rawLine in File.ReadAllLines(filePath))
+        foreach (List<List<C2Value>> row in data)
         {
-            string line = rawLine.Trim();
-            if (string.IsNullOrEmpty(line)) continue;
-
-            var groups = BracketParser.ExtractGroups(line);
-            if (groups.Count == 0) continue;
-
-            if (!int.TryParse(groups[0], out int id)) continue;
-
             var record = new SaveRecord
             {
-                Id = id,
-                Values = groups
+                Cells = row
             };
+
+            if (int.TryParse(record.GetValue(PosId), NumberStyles.Any, CultureInfo.InvariantCulture, out int id))
+                record.Id = id;
+
             records.Add(record);
         }
 
@@ -81,8 +72,7 @@ public static class SaveDataParser
 
     public static void Save(string filePath, List<SaveRecord> records)
     {
-        var lines = records.Select(r => r.ToFileLine()).ToList();
-        File.WriteAllLines(filePath, lines);
+        C2ArrayParser.Save(filePath, records.Select(r => r.Cells));
     }
 
     /// <summary>

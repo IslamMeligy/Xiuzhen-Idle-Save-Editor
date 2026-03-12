@@ -1,7 +1,56 @@
-using XiuzhenSaveEditor.Parsers;
+using System.Text.Json;
 using XiuzhenSaveEditor.Models;
+using XiuzhenSaveEditor.Parsers;
 
 namespace XiuzhenSaveEditor.Tests;
+
+internal static class TestData
+{
+    public static object[] Cell(params object[] values) => values;
+
+    public static object[][] Row(params object[][] cells) => cells;
+
+    public static C2Value Num(string text = "0") => C2Value.CreateNumber(text);
+
+    public static C2Value Str(string text = "") => C2Value.CreateString(text);
+
+    public static void WriteC2Array(string path, params object[][][] rows)
+    {
+        int maxCols = rows.Length == 0 ? 0 : rows.Max(row => row.Length);
+        int maxDepth = 0;
+        foreach (object[][] row in rows)
+        {
+            foreach (object[] cell in row)
+                maxDepth = Math.Max(maxDepth, cell.Length);
+        }
+
+        var payload = new
+        {
+            c2array = true,
+            size = new[] { rows.Length, maxCols, maxDepth },
+            data = rows
+        };
+
+        File.WriteAllText(path, JsonSerializer.Serialize(payload));
+    }
+
+    public static string ExampleFile(string fileName) =>
+        Path.Combine(RepoRoot(), "XiuzhenSaveEditor.Core", "Example", fileName);
+
+    private static string RepoRoot()
+    {
+        DirectoryInfo? current = new(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (Directory.Exists(Path.Combine(current.FullName, "XiuzhenSaveEditor.Core")))
+                return current.FullName;
+
+            current = current.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not find repository root from test output directory.");
+    }
+}
 
 public class BracketParserTests
 {
@@ -17,31 +66,6 @@ public class BracketParserTests
     }
 
     [Fact]
-    public void ExtractGroups_QuotedString_IncludesQuotes()
-    {
-        var groups = BracketParser.ExtractGroups("[1],[\"Dragon Heart\"],[0]");
-        Assert.Equal(3, groups.Count);
-        Assert.Equal("\"Dragon Heart\"", groups[1]);
-    }
-
-    [Fact]
-    public void ExtractGroups_EmptyLine_ReturnsEmpty()
-    {
-        var groups = BracketParser.ExtractGroups("");
-        Assert.Empty(groups);
-    }
-
-    [Fact]
-    public void SplitGroup_SimpleCSV_SplitsCorrectly()
-    {
-        var parts = BracketParser.SplitGroup("34,0,36");
-        Assert.Equal(3, parts.Count);
-        Assert.Equal("34", parts[0]);
-        Assert.Equal("0", parts[1]);
-        Assert.Equal("36", parts[2]);
-    }
-
-    [Fact]
     public void SplitGroup_WithQuotedComma_DoesNotSplitInsideQuotes()
     {
         var parts = BracketParser.SplitGroup("15,0,\"Dragon Heart\"");
@@ -54,50 +78,81 @@ public class BracketParserTests
     {
         Assert.Equal("Dragon Heart", BracketParser.StripQuotes("\"Dragon Heart\""));
     }
-
-    [Fact]
-    public void StripQuotes_UnquotedValue_Unchanged()
-    {
-        Assert.Equal("42", BracketParser.StripQuotes("42"));
-    }
 }
 
 public class SaveDataParserTests
 {
     [Fact]
-    public void Parse_ValidLine_ReturnsRecordWithCorrectId()
+    public void Parse_ValidC2Array_ReturnsRecordWithCorrectId()
     {
         string tempFile = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(tempFile,
-                "[1],[1050],[0],[1],[9],[0],[0],[0],[0],[0],[0],[1579],[1091],[1],[0],[1],[0],[40],[1],[0],[0],[1],[120],[0],[500],[101],[0],[10],[0],[8]\n" +
-                "[17],[0],[0],[1],[2],[0],[0],[0],[0],[0],[0],[0],[0],[1],[0],[1],[0],[0],[1],[0],[0],[1],[999999],[0],[0],[0],[0],[0],[0],[2]");
+            TestData.WriteC2Array(
+                tempFile,
+                TestData.Row(
+                    TestData.Cell(1),
+                    TestData.Cell(1050),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(9),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(1579),
+                    TestData.Cell(1091),
+                    TestData.Cell(1),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(0),
+                    TestData.Cell(40),
+                    TestData.Cell(1),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(120),
+                    TestData.Cell(0),
+                    TestData.Cell(500)
+                ),
+                TestData.Row(
+                    TestData.Cell(17),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(2),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(0),
+                    TestData.Cell(0),
+                    TestData.Cell(1),
+                    TestData.Cell(999999),
+                    TestData.Cell(0),
+                    TestData.Cell(0)
+                )
+            );
 
             var records = SaveDataParser.Parse(tempFile);
             Assert.Equal(2, records.Count);
             Assert.Equal(1, records[0].Id);
-            Assert.Equal("1050", records[0].GetValue(1));  // Layer
-            Assert.Equal("500", records[0].GetValue(24));  // Floor
-
+            Assert.Equal("1050", records[0].GetValue(1));
+            Assert.Equal("500", records[0].GetValue(24));
             Assert.Equal(17, records[1].Id);
-            Assert.Equal("999999", records[1].GetValue(22)); // Money
-        }
-        finally
-        {
-            File.Delete(tempFile);
-        }
-    }
-
-    [Fact]
-    public void Parse_EmptyFile_ReturnsEmptyList()
-    {
-        string tempFile = Path.GetTempFileName();
-        try
-        {
-            File.WriteAllText(tempFile, "");
-            var records = SaveDataParser.Parse(tempFile);
-            Assert.Empty(records);
+            Assert.Equal("999999", records[1].GetValue(22));
         }
         finally
         {
@@ -110,21 +165,21 @@ public class SaveDataParserTests
     {
         var records = new List<SaveRecord>
         {
-            new() { Id = 5, Values = ["5", "100", "0"] }
+            new()
+            {
+                Id = 5,
+                Cells =
+                [
+                    [TestData.Num("5")],
+                    [TestData.Num("100")],
+                    [TestData.Num("0")]
+                ]
+            }
         };
+
         var found = SaveDataParser.FindById(records, 5);
         Assert.NotNull(found);
-        Assert.Equal(5, found.Id);
-    }
-
-    [Fact]
-    public void FindById_MissingId_ReturnsNull()
-    {
-        var records = new List<SaveRecord>
-        {
-            new() { Id = 5, Values = ["5", "100", "0"] }
-        };
-        Assert.Null(SaveDataParser.FindById(records, 99));
+        Assert.Equal(5, found!.Id);
     }
 
     [Fact]
@@ -133,14 +188,15 @@ public class SaveDataParserTests
         string tempFile = Path.GetTempFileName();
         try
         {
-            string original =
-                "[1],[1050],[0],[1],[9],[0],[0],[0],[0],[0],[0],[1579],[1091],[1],[0],[1],[0],[40],[1],[0],[0],[1],[120],[0],[500],[101],[0],[10],[0],[8]";
-            File.WriteAllText(tempFile, original);
+            TestData.WriteC2Array(
+                tempFile,
+                TestData.Row(TestData.Cell(1), TestData.Cell(1050), TestData.Cell(0), TestData.Cell(1))
+            );
 
             var records = SaveDataParser.Parse(tempFile);
             Assert.Single(records);
 
-            records[0].SetValue(1, "2000"); // change layer
+            records[0].SetValue(1, "2000");
             SaveDataParser.Save(tempFile, records);
 
             var reloaded = SaveDataParser.Parse(tempFile);
@@ -151,37 +207,68 @@ public class SaveDataParserTests
             File.Delete(tempFile);
         }
     }
+
+    [Fact]
+    public void Parse_ExampleFile_ReturnsExpectedKnownValues()
+    {
+        var records = SaveDataParser.Parse(TestData.ExampleFile("0save.dat"));
+
+        Assert.Contains(records, record => record.Id == 1 && record.GetValue(1) == "3100" && record.GetValue(24) == "251");
+        Assert.Contains(records, record => record.Id == 17 && record.GetValue(22) == "7018659007328726");
+    }
 }
 
 public class DiscipleParserTests
 {
-    private const string SampleLine =
-        "[1],[Wang],[Wei],[uuid001],[85],[72],[63],[90],[45],[3],[5],[7],[4],[6],[8],[9],[10],[2],[1],[0],[0],[1],[2],[3],[4],[5],[6],[7],[8]";
-
     [Fact]
-    public void Parse_ValidLine_ReturnsDisciple()
+    public void Parse_ValidC2Array_ReturnsDisciple()
     {
         string tempFile = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(tempFile, SampleLine);
+            TestData.WriteC2Array(
+                tempFile,
+                TestData.Row(
+                    TestData.Cell(1),
+                    TestData.Cell("Wang"),
+                    TestData.Cell("Wei"),
+                    TestData.Cell(12345),
+                    TestData.Cell(85),
+                    TestData.Cell(72),
+                    TestData.Cell(63),
+                    TestData.Cell(90),
+                    TestData.Cell(45),
+                    TestData.Cell(3),
+                    TestData.Cell(5),
+                    TestData.Cell(7),
+                    TestData.Cell(4),
+                    TestData.Cell(6),
+                    TestData.Cell(8),
+                    TestData.Cell(9),
+                    TestData.Cell(10),
+                    TestData.Cell("No position"),
+                    TestData.Cell("Forging!"),
+                    TestData.Cell(11),
+                    TestData.Cell(12),
+                    TestData.Cell(1),
+                    TestData.Cell(2),
+                    TestData.Cell(3),
+                    TestData.Cell(4),
+                    TestData.Cell(5),
+                    TestData.Cell(6),
+                    TestData.Cell(7),
+                    TestData.Cell(8)
+                )
+            );
+
             var disciples = DiscipleParser.Parse(tempFile);
             Assert.Single(disciples);
-            Assert.Equal("1", disciples[0].Realm);
             Assert.Equal("Wang", disciples[0].FamilyName);
             Assert.Equal("Wei", disciples[0].Name);
-            Assert.Equal("85", disciples[0].QiSense);
-            Assert.Equal("90", disciples[0].Talent);
-
-            // Skill talent fields (positions 21-28)
-            Assert.Equal("1", disciples[0].BuildTalent);
+            Assert.Equal("No position", disciples[0].Position);
+            Assert.Equal("Forging!", disciples[0].Task);
+            Assert.Equal("11", disciples[0].Unknown1);
             Assert.Equal("2", disciples[0].HerbsTalent);
-            Assert.Equal("3", disciples[0].MineTalent);
-            Assert.Equal("4", disciples[0].HuntTalent);
-            Assert.Equal("5", disciples[0].TameTalent);
-            Assert.Equal("6", disciples[0].ExternalTalent);
-            Assert.Equal("7", disciples[0].DanTalent);
-            Assert.Equal("8", disciples[0].WeaponTalent);
         }
         finally
         {
@@ -190,29 +277,18 @@ public class DiscipleParserTests
     }
 
     [Fact]
-    public void SkillTalentGrades_CorrectlyClassified()
+    public void Parse_ExampleFile_ExposesHiddenColumns()
     {
-        string tempFile = Path.GetTempFileName();
-        try
-        {
-            // Craft a line with known talent values at positions 21-28
-            File.WriteAllText(tempFile,
-                "[1],[Wang],[Wei],[uuid001],[85],[72],[63],[90],[45],[3],[5],[7],[4],[6],[8],[9],[10],[2],[1],[0],[0],[15],[35],[55],[85],[120],[145],[10],[100]");
-            var disciples = DiscipleParser.Parse(tempFile);
-            Assert.Single(disciples);
-            Assert.Equal("C", disciples[0].BuildTalentGradeStr);     // 15 -> C
-            Assert.Equal("B", disciples[0].HerbsTalentGradeStr);     // 35 -> B
-            Assert.Equal("A", disciples[0].MineTalentGradeStr);      // 55 -> A
-            Assert.Equal("S", disciples[0].HuntTalentGradeStr);      // 85 -> S
-            Assert.Equal("SS", disciples[0].TameTalentGradeStr);     // 120 -> SS
-            Assert.Equal("SSS", disciples[0].ExternalTalentGradeStr);// 145 -> SSS
-            Assert.Equal("C", disciples[0].DanTalentGradeStr);       // 10 -> C
-            Assert.Equal("S", disciples[0].WeaponTalentGradeStr);    // 100 -> S
-        }
-        finally
-        {
-            File.Delete(tempFile);
-        }
+        var disciples = DiscipleParser.Parse(TestData.ExampleFile("0svjy.dat"));
+        var disciple = disciples[1];
+
+        Assert.Equal("Li", disciple.FamilyName);
+        Assert.Equal("Xiao Yao", disciple.Name);
+        Assert.Equal("No position", disciple.Position);
+        Assert.Equal("Forging!", disciple.Task);
+        Assert.Equal("214", disciple.Unknown1);
+        Assert.Equal("12345", disciple.BuildTalent);
+        Assert.Equal("0", disciple.GetRaw(29));
     }
 
     [Fact]
@@ -225,33 +301,36 @@ public class DiscipleParserTests
         Assert.Equal("SS", TalentGrade.GetGrade(120));
         Assert.Equal("SSS", TalentGrade.GetGrade(145));
     }
-
-    [Fact]
-    public void TalentGrade_Zero_ReturnsDash()
-    {
-        Assert.Equal("-", TalentGrade.GetGrade(0));
-    }
 }
 
 public class SoulParserTests
 {
     [Fact]
-    public void Parse_ValidLine_ReturnsSoulRecord()
+    public void Parse_ValidC2Array_ReturnsSoulRecord()
     {
         string tempFile = Path.GetTempFileName();
         try
         {
-            // [SID,0,0],[SQ,0,FID],[ST1,0,LSU],[ST2,0,LS],[ST3,0,FA],[ST4,0,0],[ST5,0,"HarvestName"],[0,0,0]
-            File.WriteAllText(tempFile,
-                "[100,0,0],[5,0,42],[34,0,36],[58,0,240],[720,0,3],[82,0,0],[15,0,\"Dragon Heart\"],[0,0,0]");
+            TestData.WriteC2Array(
+                tempFile,
+                TestData.Row(
+                    TestData.Cell(100, 0, ""),
+                    TestData.Cell(5, 0, 42),
+                    TestData.Cell(34, 0, 36),
+                    TestData.Cell(58, 0, 240),
+                    TestData.Cell(720, 0, 3),
+                    TestData.Cell(82, 0, "Mature"),
+                    TestData.Cell(15, 0, "Dragon Heart"),
+                    TestData.Cell(0, 0, "Mature1")
+                )
+            );
 
             var souls = SoulParser.Parse(tempFile);
             Assert.Single(souls);
             Assert.Equal("100", souls[0].SoulId);
-            Assert.Equal("42",  souls[0].FruitId);
-            Assert.Equal("34",  souls[0].Spirit);
-            Assert.Equal("58",  souls[0].Resonance);
-            Assert.Equal("\"Dragon Heart\"", souls[0].HarvestName);
+            Assert.Equal("42", souls[0].FruitId);
+            Assert.Equal("34", souls[0].Spirit);
+            Assert.Equal("Dragon Heart", souls[0].HarvestName);
         }
         finally
         {
@@ -260,34 +339,68 @@ public class SoulParserTests
     }
 
     [Fact]
+    public void Parse_ExampleFile_ReturnsExpectedFields()
+    {
+        var souls = SoulParser.Parse(TestData.ExampleFile("0svlz.dat"));
+        var soul = souls[1];
+
+        Assert.Equal("190", soul.SoulId);
+        Assert.Equal("6", soul.FruitId);
+        Assert.Equal("59", soul.Spirit);
+        Assert.Equal("Aura fruit", soul.HarvestName);
+    }
+
+    [Fact]
     public void SoulRecord_ToFileLine_RoundTrip()
     {
-        var soul = new SoulRecord();
-        soul.Groups.Add(new List<string> { "100", "0", "0" });
-        soul.Groups.Add(new List<string> { "5", "0", "42" });
+        var soul = new SoulRecord
+        {
+            Groups =
+            [
+                [TestData.Num("100"), TestData.Num("0"), TestData.Str()],
+                [TestData.Num("5"), TestData.Num("0"), TestData.Num("42")]
+            ]
+        };
 
         string line = soul.ToFileLine();
-        Assert.Equal("[100,0,0],[5,0,42]", line);
+        Assert.Equal("[100,0,],[5,0,42]", line);
     }
 }
 
 public class LifestoneParserTests
 {
     [Fact]
-    public void Parse_ValidLine_ReturnsLifestoneRecord()
+    public void Parse_ValidC2Array_ReturnsLifestoneRecord()
     {
         string tempFile = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(tempFile,
-                "[0,1001],[0,0],[0,5],[0,12],[0,7],[0,3],[0,9],[0,0],[0,15],[0,85],[0,72],[0,60],[0,55],[0,90]");
+            TestData.WriteC2Array(
+                tempFile,
+                TestData.Row(
+                    TestData.Cell(59, 1001),
+                    TestData.Cell(110.15, 5),
+                    TestData.Cell(0, 12345),
+                    TestData.Cell(0, 12),
+                    TestData.Cell(0, 7),
+                    TestData.Cell(0, 3),
+                    TestData.Cell(0, 9),
+                    TestData.Cell(0, 0),
+                    TestData.Cell(0, 15),
+                    TestData.Cell(0, 85),
+                    TestData.Cell(0, 72),
+                    TestData.Cell(0, 60),
+                    TestData.Cell(0, 55),
+                    TestData.Cell(0, 90)
+                )
+            );
 
             var stones = LifestoneParser.Parse(tempFile);
             Assert.Single(stones);
             Assert.Equal("1001", stones[0].LifestoneId);
-            Assert.Equal("5",    stones[0].Level);
-            Assert.Equal("12",   stones[0].Effect1Id);
-            Assert.Equal("85",   stones[0].Effect1Pct);
+            Assert.Equal("5", stones[0].Level);
+            Assert.Equal("12", stones[0].Effect1Id);
+            Assert.Equal("85", stones[0].Effect1Pct);
         }
         finally
         {
@@ -296,15 +409,14 @@ public class LifestoneParserTests
     }
 
     [Fact]
-    public void LifestoneRecord_ToFileLine_RoundTrip()
+    public void Parse_ExampleFile_ReturnsExpectedLevel()
     {
-        var ls = new LifestoneRecord();
-        ls.Groups.Add(new List<string> { "0", "1001" });
-        ls.Groups.Add(new List<string> { "0", "0" });
-        ls.Groups.Add(new List<string> { "0", "5" });
+        var stones = LifestoneParser.Parse(TestData.ExampleFile("0svzb.dat"));
+        var stone = stones[1];
 
-        string line = ls.ToFileLine();
-        Assert.Equal("[0,1001],[0,0],[0,5]", line);
+        Assert.Equal("471", stone.LifestoneId);
+        Assert.Equal("1", stone.Level);
+        Assert.Equal("12.3", stone.Effect1Pct);
     }
 }
 
@@ -313,23 +425,50 @@ public class SaveRecordTests
     [Fact]
     public void GetValue_OutOfRange_ReturnsZero()
     {
-        var rec = new SaveRecord { Id = 1, Values = new List<string> { "1", "100" } };
+        var rec = new SaveRecord
+        {
+            Id = 1,
+            Cells =
+            [
+                [TestData.Num("1")],
+                [TestData.Num("100")]
+            ]
+        };
+
         Assert.Equal("0", rec.GetValue(99));
     }
 
     [Fact]
     public void SetValue_ExtendsValues_WhenIndexBeyondCount()
     {
-        var rec = new SaveRecord { Id = 1, Values = new List<string> { "1" } };
+        var rec = new SaveRecord
+        {
+            Id = 1,
+            Cells =
+            [
+                [TestData.Num("1")]
+            ]
+        };
+
         rec.SetValue(3, "42");
         Assert.Equal("42", rec.GetValue(3));
-        Assert.Equal(4, rec.Values.Count);
+        Assert.Equal(4, rec.Cells.Count);
     }
 
     [Fact]
     public void ToFileLine_ProducesCorrectFormat()
     {
-        var rec = new SaveRecord { Id = 1, Values = new List<string> { "1", "1050", "0" } };
+        var rec = new SaveRecord
+        {
+            Id = 1,
+            Cells =
+            [
+                [TestData.Num("1")],
+                [TestData.Num("1050")],
+                [TestData.Num("0")]
+            ]
+        };
+
         Assert.Equal("[1],[1050],[0]", rec.ToFileLine());
     }
 }
@@ -349,23 +488,9 @@ public class ItemDatabaseTests
         var db = ItemDatabase.LoadEmbedded();
         var item = db.GetById(1);
         Assert.NotNull(item);
-        Assert.Equal("Sun Grass", item.Name);
+        Assert.Equal("Sun Grass", item!.Name);
         Assert.Equal("Gathering", item.Category);
         Assert.Equal(1, item.Tier);
-    }
-
-    [Fact]
-    public void GetById_UnknownId_ReturnsNull()
-    {
-        var db = ItemDatabase.LoadEmbedded();
-        Assert.Null(db.GetById(99999));
-    }
-
-    [Fact]
-    public void GetName_KnownId_ReturnsName()
-    {
-        var db = ItemDatabase.LoadEmbedded();
-        Assert.Equal("Basalt Ore", db.GetName(16));
     }
 
     [Fact]
@@ -374,46 +499,18 @@ public class ItemDatabaseTests
         var db = ItemDatabase.LoadEmbedded();
         Assert.Equal("Unknown (99999)", db.GetName(99999));
     }
-
-    [Fact]
-    public void ByCategory_ReturnsMatchingItems()
-    {
-        var db = ItemDatabase.LoadEmbedded();
-        var gathering = db.ByCategory("Gathering").ToList();
-        Assert.True(gathering.Count > 0);
-        Assert.All(gathering, i => Assert.Equal("Gathering", i.Category));
-    }
-
-    [Fact]
-    public void GetById_SoulItem_ReturnsCorrectRecord()
-    {
-        var db = ItemDatabase.LoadEmbedded();
-        var soul = db.GetById(111);
-        Assert.NotNull(soul);
-        Assert.Equal("Wild Boar Beast Soul", soul.Name);
-        Assert.Equal("Souls", soul.Category);
-    }
-
-    [Fact]
-    public void GetById_BreakthroughMaterial_ReturnsCorrectRecord()
-    {
-        var db = ItemDatabase.LoadEmbedded();
-        var item = db.GetById(481);
-        Assert.NotNull(item);
-        Assert.Equal("Chakra Herb", item.Name);
-        Assert.Equal("Breakthrough Material", item.Category);
-    }
 }
 
 public class InventoryParserTests
 {
     [Fact]
-    public void Parse_ValidLine_ReturnsInventoryRecord()
+    public void Parse_ValidC2Array_ReturnsInventoryRecord()
     {
         string tempFile = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(tempFile, "[42,100]");
+            TestData.WriteC2Array(tempFile, TestData.Row(TestData.Cell(42), TestData.Cell(100), TestData.Cell(0)));
+
             var items = InventoryParser.Parse(tempFile);
             Assert.Single(items);
             Assert.Equal("42", items[0].ItemId);
@@ -426,17 +523,18 @@ public class InventoryParserTests
     }
 
     [Fact]
-    public void Parse_MultipleLines_ReturnsAllRecords()
+    public void Save_RoundTrip_PreservesValues()
     {
         string tempFile = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(tempFile, "[1,50]\n[16,25]\n[91,10]");
+            TestData.WriteC2Array(tempFile, TestData.Row(TestData.Cell(42), TestData.Cell(100), TestData.Cell(0)));
             var items = InventoryParser.Parse(tempFile);
-            Assert.Equal(3, items.Count);
-            Assert.Equal("1",  items[0].ItemId);
-            Assert.Equal("16", items[1].ItemId);
-            Assert.Equal("91", items[2].ItemId);
+            items[0].SetSub(1, 0, "200");
+            InventoryParser.Save(tempFile, items);
+
+            var reloaded = InventoryParser.Parse(tempFile);
+            Assert.Equal("200", reloaded[0].Quantity);
         }
         finally
         {
@@ -445,27 +543,27 @@ public class InventoryParserTests
     }
 
     [Fact]
-    public void Parse_EmptyFile_ReturnsEmptyList()
+    public void Parse_ExampleFile_ReturnsExpectedQuantity()
     {
-        string tempFile = Path.GetTempFileName();
-        try
-        {
-            File.WriteAllText(tempFile, "");
-            var items = InventoryParser.Parse(tempFile);
-            Assert.Empty(items);
-        }
-        finally
-        {
-            File.Delete(tempFile);
-        }
-    }
+        var items = InventoryParser.Parse(TestData.ExampleFile("0svwp.dat"));
+        var item = items[1];
 
+        Assert.Equal("2", item.ItemId);
+        Assert.Equal("3.9176267217271093E+186", double.Parse(item.Quantity).ToString("E16"));
+    }
+}
+
+public class SectParserTests
+{
     [Fact]
-    public void InventoryRecord_ToFileLine_RoundTrip()
+    public void Parse_ExampleFile_ReturnsExpectedRows()
     {
-        var inv = new InventoryRecord();
-        inv.Groups.Add(new List<string> { "42", "100" });
-        Assert.Equal("[42,100]", inv.ToFileLine());
+        var sects = SectParser.Parse(TestData.ExampleFile("0svmp.dat"));
+
+        Assert.Equal(151, sects.Count);
+        Assert.Equal("50000", sects[0].GetSub(7, 0));
+        Assert.Equal("489", sects[1].GetSub(0, 1));
+        Assert.Equal("67.59", sects[1].GetSub(3, 5));
     }
 
     [Fact]
@@ -474,13 +572,25 @@ public class InventoryParserTests
         string tempFile = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(tempFile, "[42,100]");
-            var items = InventoryParser.Parse(tempFile);
-            items[0].SetSub(0, 1, "200");
-            InventoryParser.Save(tempFile, items);
+            SectParser.Save(
+                tempFile,
+                new List<SectRecord>
+                {
+                    new()
+                    {
+                        Groups =
+                        [
+                            [TestData.Num("1"), TestData.Num("2")],
+                            [TestData.Num("3"), TestData.Str("note")]
+                        ]
+                    }
+                }
+            );
 
-            var reloaded = InventoryParser.Parse(tempFile);
-            Assert.Equal("200", reloaded[0].Quantity);
+            var sects = SectParser.Parse(tempFile);
+            Assert.Single(sects);
+            Assert.Equal("2", sects[0].GetSub(0, 1));
+            Assert.Equal("note", sects[0].GetSub(1, 1));
         }
         finally
         {

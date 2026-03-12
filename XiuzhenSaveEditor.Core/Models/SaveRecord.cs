@@ -1,27 +1,32 @@
-namespace XiuzhenSaveEditor.Models;
+﻿namespace XiuzhenSaveEditor.Models;
 
 /// <summary>
-/// Represents a single data row in the save.dat file.
-/// Each row starts with an ID and contains positional values.
+/// Represents a single record in the save.dat file.
+/// Each logical field is stored in a nested c2array cell, and the editor
+/// currently uses the first value in each field.
 /// </summary>
 public class SaveRecord
 {
     public int Id { get; set; }
-    public List<string> Values { get; set; } = new();
+    public List<List<C2Value>> Cells { get; set; } = new();
 
     public string GetValue(int index) =>
-        index < Values.Count ? Values[index] : "0";
+        index < Cells.Count && Cells[index].Count > 0 ? Cells[index][0].Text : "0";
 
     public void SetValue(int index, string value)
     {
-        while (Values.Count <= index)
-            Values.Add("0");
-        Values[index] = value;
+        while (Cells.Count <= index)
+            Cells.Add([C2Value.CreateNumber()]);
+
+        if (Cells[index].Count == 0)
+            Cells[index].Add(C2Value.CreateNumber());
+
+        Cells[index][0].SetText(value);
     }
 
     /// <summary>
-    /// Serialize back to the bracket-delimited format.
+    /// Debug-friendly representation of the first value in each field.
     /// </summary>
     public string ToFileLine() =>
-        "[" + string.Join("],[", Values) + "]";
+        "[" + string.Join("],[", Cells.Select(c => c.Count > 0 ? c[0].Text : "0")) + "]";
 }
