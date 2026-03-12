@@ -55,12 +55,36 @@ public class Disciple
     public string Position   => Get(17);
     public string Task       => Get(18);
 
-    // Talent grades (displayed as C/B/A/S/SS/SSS)
+    // Columns 19-20: unknown purpose
+    public string Unknown1   => Get(19);
+    public string Unknown2   => Get(20);
+
+    // Columns 21-28: skill talent values (graded C/B/A/S/SS/SSS)
+    public string BuildTalent    => Get(21);
+    public string HerbsTalent    => Get(22);
+    public string MineTalent     => Get(23);
+    public string HuntTalent     => Get(24);
+    public string TameTalent     => Get(25);
+    public string ExternalTalent => Get(26);
+    public string DanTalent      => Get(27);
+    public string WeaponTalent   => Get(28);
+
+    // Talent grades for personal attributes (displayed as C/B/A/S/SS/SSS)
     public string TalentGradeStr  => TalentGrade.GetGrade(Talent);
     public string ChanceGradeStr  => TalentGrade.GetGrade(Chance);
     public string QiSenseGradeStr => TalentGrade.GetGrade(QiSense);
     public string GodGradeStr     => TalentGrade.GetGrade(God);
     public string RootsGradeStr   => TalentGrade.GetGrade(Roots);
+
+    // Talent grades for skill fields (positions 21-28)
+    public string BuildTalentGradeStr    => TalentGrade.GetGrade(BuildTalent);
+    public string HerbsTalentGradeStr    => TalentGrade.GetGrade(HerbsTalent);
+    public string MineTalentGradeStr     => TalentGrade.GetGrade(MineTalent);
+    public string HuntTalentGradeStr     => TalentGrade.GetGrade(HuntTalent);
+    public string TameTalentGradeStr     => TalentGrade.GetGrade(TameTalent);
+    public string ExternalTalentGradeStr => TalentGrade.GetGrade(ExternalTalent);
+    public string DanTalentGradeStr      => TalentGrade.GetGrade(DanTalent);
+    public string WeaponTalentGradeStr   => TalentGrade.GetGrade(WeaponTalent);
 
     private string Get(int i) => i < RawValues.Count ? RawValues[i] : "";
 

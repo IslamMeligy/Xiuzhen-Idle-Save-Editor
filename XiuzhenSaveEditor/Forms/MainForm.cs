@@ -21,8 +21,11 @@ public class MainForm : Form
     private List<Disciple> _disciples = new();
     private List<SoulRecord> _souls = new();
     private List<LifestoneRecord> _lifestones = new();
+    private List<InventoryRecord> _inventory = new();
 
-    // ── Top Controls ─────────────────────────────────────────────────────────
+    private ItemDatabase _itemDb = null!;
+
+    // ── Top Controls
     private TextBox _folderBox = null!;
     private ComboBox _slotBox = null!;
     private Label _statusLabel = null!;
@@ -44,8 +47,12 @@ public class MainForm : Form
     // Lifestones tab
     private DataGridView _lifestonesGrid = null!;
 
+    // Inventory tab
+    private DataGridView _inventoryGrid = null!;
+
     public MainForm()
     {
+        _itemDb = ItemDatabase.LoadEmbedded();
         InitializeUI();
     }
 
@@ -67,50 +74,59 @@ public class MainForm : Form
             Padding = new Padding(8)
         };
 
-        // Row 1: folder selector
-        var row1 = new FlowLayoutPanel
+        // Use a TableLayoutPanel so the folder textbox stretches with the form
+        var topTable = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            Height = 36,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false
+            Dock = DockStyle.Fill,
+            ColumnCount = 4,
+            RowCount = 2,
+            AutoSize = false
         };
+        topTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));  // label
+        topTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f)); // stretch
+        topTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));  // btn1
+        topTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));  // btn2
+        topTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 34f));
+        topTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 34f));
 
-        row1.Controls.Add(new Label { Text = "Save Folder:", Width = 85, TextAlign = ContentAlignment.MiddleRight, Height = 24 });
+        // Row 1: folder selector
+        topTable.Controls.Add(new Label { Text = "Save Folder:", Width = 85, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 0, 0);
 
-        _folderBox = new TextBox { Width = 550, Height = 24 };
-        row1.Controls.Add(_folderBox);
+        _folderBox = new TextBox { Dock = DockStyle.Fill };
+        topTable.Controls.Add(_folderBox, 1, 0);
 
         var browseBtn = new Button { Text = "Browse…", Width = 80, Height = 26 };
         browseBtn.Click += BrowseFolder_Click;
-        row1.Controls.Add(browseBtn);
+        topTable.Controls.Add(browseBtn, 2, 0);
+        topTable.SetColumnSpan(browseBtn, 2);
 
         // Row 2: slot selector + load/save
-        var row2 = new FlowLayoutPanel
+        topTable.Controls.Add(new Label { Text = "Save Slot:", Width = 85, TextAlign = ContentAlignment.MiddleRight, Dock = DockStyle.Fill }, 0, 1);
+
+        var row2Flow = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top,
-            Height = 36,
+            Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false
+            WrapContents = false,
+            Margin = new Padding(0)
         };
-
-        row2.Controls.Add(new Label { Text = "Save Slot:", Width = 85, TextAlign = ContentAlignment.MiddleRight, Height = 24 });
-
         _slotBox = new ComboBox { Width = 60, DropDownStyle = ComboBoxStyle.DropDownList };
         for (int i = 0; i <= 9; i++) _slotBox.Items.Add(i.ToString());
         _slotBox.SelectedIndex = 0;
-        row2.Controls.Add(_slotBox);
+        row2Flow.Controls.Add(_slotBox);
 
         var loadBtn = new Button { Text = "Load", Width = 80, Height = 26 };
         loadBtn.Click += LoadSave_Click;
-        row2.Controls.Add(loadBtn);
+        row2Flow.Controls.Add(loadBtn);
 
         var saveBtn = new Button { Text = "Save Changes", Width = 110, Height = 26 };
         saveBtn.Click += SaveChanges_Click;
-        row2.Controls.Add(saveBtn);
+        row2Flow.Controls.Add(saveBtn);
 
-        topPanel.Controls.Add(row2);
-        topPanel.Controls.Add(row1);
+        topTable.Controls.Add(row2Flow, 1, 1);
+        topTable.SetColumnSpan(row2Flow, 3);
+
+        topPanel.Controls.Add(topTable);
 
         // ── Status bar ───────────────────────────────────────────────────────
         var statusBar = new Panel
@@ -136,6 +152,7 @@ public class MainForm : Form
         _tabs.TabPages.Add(BuildDisciplesTab());
         _tabs.TabPages.Add(BuildSoulsTab());
         _tabs.TabPages.Add(BuildLifestonesTab());
+        _tabs.TabPages.Add(BuildInventoryTab());
 
         Controls.Add(_tabs);
         Controls.Add(statusBar);
@@ -173,7 +190,8 @@ public class MainForm : Form
             AllowUserToDeleteRows = false,
             RowHeadersVisible = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            BackgroundColor = SystemColors.Window
+            BackgroundColor = SystemColors.Window,
+            ScrollBars = ScrollBars.Both
         };
         _cultivationGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "ID",      HeaderText = "ID",       Width = 40,  ReadOnly = true });
         _cultivationGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name",    HeaderText = "Technique",Width = 120, ReadOnly = true });
@@ -198,17 +216,17 @@ public class MainForm : Form
         _statsPanel.Controls.Clear();
         _statBoxes.Clear();
 
-        // Use a TableLayoutPanel for a clean 3-column layout
+        // Use a TableLayoutPanel for a clean 2-column layout
         var table = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
-            ColumnCount = 3,
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
             AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(6)
         };
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
         var sections = new (string header, (string key, string label)[] fields)[]
         {
@@ -279,7 +297,7 @@ public class MainForm : Form
             }
 
             group.Controls.Add(inner);
-            table.Controls.Add(group, col % 3, col / 3);
+            table.Controls.Add(group, col % 2, col / 2);
             col++;
         }
 
@@ -309,7 +327,8 @@ public class MainForm : Form
             RowHeadersVisible = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             BackgroundColor = SystemColors.Window,
-            ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableWithAutoHeaderText
+            ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableWithAutoHeaderText,
+            ScrollBars = ScrollBars.Both
         };
 
         AddDiscipleColumns();
@@ -347,6 +366,22 @@ public class MainForm : Form
             ("Weapon",      "Weapon",       false),
             ("Position",    "Position",     false),
             ("Task",        "Task",         false),
+            ("BuildTalent",       "Build Talent",    false),
+            ("BuildGrade",        "Build Grade",     true),
+            ("HerbsTalent",       "Herbs Talent",    false),
+            ("HerbsGrade",        "Herbs Grade",     true),
+            ("MineTalent",        "Mine Talent",     false),
+            ("MineGrade",         "Mine Grade",      true),
+            ("HuntTalent",        "Hunt Talent",     false),
+            ("HuntGrade",         "Hunt Grade",      true),
+            ("TameTalent",        "Tame Talent",     false),
+            ("TameGrade",         "Tame Grade",      true),
+            ("ExternalTalent",    "External Talent", false),
+            ("ExternalGrade",     "External Grade",  true),
+            ("DanTalent",         "Dan Talent",      false),
+            ("DanGrade",          "Dan Grade",       true),
+            ("WeaponTalent",      "Weapon Talent",   false),
+            ("WeaponGrade",       "Weapon Grade",    true),
         };
 
         foreach (var (name, header, ro) in columns)
@@ -382,7 +417,8 @@ public class MainForm : Form
             AllowUserToDeleteRows = false,
             RowHeadersVisible = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            BackgroundColor = SystemColors.Window
+            BackgroundColor = SystemColors.Window,
+            ScrollBars = ScrollBars.Both
         };
 
         foreach (var (name, header, ro) in SoulColumns())
@@ -401,7 +437,9 @@ public class MainForm : Form
     private static (string, string, bool)[] SoulColumns() => new[]
     {
         ("SoulID",      "Soul ID",       true),
+        ("SoulName",    "Soul Name",     true),
         ("FruitID",     "Fruit ID",      false),
+        ("FruitName",   "Fruit Name",    true),
         ("Spirit",      "Spirit",        false),
         ("Resonance",   "Resonance",     false),
         ("Strength",    "Strength",      false),
@@ -427,7 +465,8 @@ public class MainForm : Form
             AllowUserToDeleteRows = false,
             RowHeadersVisible = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            BackgroundColor = SystemColors.Window
+            BackgroundColor = SystemColors.Window,
+            ScrollBars = ScrollBars.Both
         };
 
         foreach (var (name, header, ro) in LifestoneColumns())
@@ -458,7 +497,45 @@ public class MainForm : Form
         ("EP5",    "Effect 5 %",   false),
     };
 
-    // ── Event Handlers ────────────────────────────────────────────────────────
+    // ── Tab: Inventory ────────────────────────────────────────────────────────
+
+    private TabPage BuildInventoryTab()
+    {
+        var page = new TabPage("Inventory (svwp.dat)");
+
+        _inventoryGrid = new DataGridView
+        {
+            Dock = DockStyle.Fill,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells,
+            AllowUserToAddRows = false,
+            AllowUserToDeleteRows = false,
+            RowHeadersVisible = false,
+            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            BackgroundColor = SystemColors.Window,
+            ScrollBars = ScrollBars.Both
+        };
+
+        foreach (var (name, header, ro) in InventoryColumns())
+            _inventoryGrid.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = name,
+                HeaderText = header,
+                ReadOnly = ro
+            });
+
+        page.Controls.Add(_inventoryGrid);
+        return page;
+    }
+
+    private static (string, string, bool)[] InventoryColumns() => new[]
+    {
+        ("ItemID",   "Item ID",   true),
+        ("ItemName", "Item Name", true),
+        ("Category", "Category",  true),
+        ("Quantity", "Quantity",   false),
+    };
+
+    // ── Event Handlers
 
     private void BrowseFolder_Click(object? sender, EventArgs e)
     {
@@ -489,6 +566,7 @@ public class MainForm : Form
             LoadDisciples();
             LoadSouls();
             LoadLifestones();
+            LoadInventory();
             SetStatus($"Slot {_saveSlot} loaded from: {_saveFolder}");
         }
         catch (Exception ex)
@@ -511,6 +589,7 @@ public class MainForm : Form
             SaveDisciples();
             SaveSouls();
             SaveLifestones();
+            SaveInventory();
             SetStatus("All changes saved successfully.");
         }
         catch (Exception ex)
@@ -587,7 +666,15 @@ public class MainForm : Form
                 d.Chance, d.ChanceGradeStr,
                 d.Building, d.Herbs, d.Mining, d.Hunting,
                 d.Taming, d.External, d.Alchemy, d.Weapon,
-                d.Position, d.Task
+                d.Position, d.Task,
+                d.BuildTalent, d.BuildTalentGradeStr,
+                d.HerbsTalent, d.HerbsTalentGradeStr,
+                d.MineTalent, d.MineTalentGradeStr,
+                d.HuntTalent, d.HuntTalentGradeStr,
+                d.TameTalent, d.TameTalentGradeStr,
+                d.ExternalTalent, d.ExternalTalentGradeStr,
+                d.DanTalent, d.DanTalentGradeStr,
+                d.WeaponTalent, d.WeaponTalentGradeStr
             );
         }
     }
@@ -600,8 +687,11 @@ public class MainForm : Form
         _soulsGrid.Rows.Clear();
         foreach (var s in _souls)
         {
+            int.TryParse(s.SoulId, out int soulId);
+            int.TryParse(s.FruitId, out int fruitId);
             _soulsGrid.Rows.Add(
-                s.SoulId, s.FruitId,
+                s.SoulId, _itemDb.GetName(soulId),
+                s.FruitId, fruitId > 0 ? _itemDb.GetName(fruitId) : "",
                 s.Spirit, s.Resonance, s.Strength, s.Stability, s.Fortune,
                 s.LifespanUsed, s.Lifespan,
                 s.FruitAge, BracketParser.StripQuotes(s.HarvestName)
@@ -625,7 +715,26 @@ public class MainForm : Form
         }
     }
 
-    // ── Save Helpers ──────────────────────────────────────────────────────────
+    private void LoadInventory()
+    {
+        string path = SlotFile("svwp.dat");
+        _inventory = InventoryParser.Parse(path);
+
+        _inventoryGrid.Rows.Clear();
+        foreach (var inv in _inventory)
+        {
+            int.TryParse(inv.ItemId, out int itemId);
+            var item = _itemDb.GetById(itemId);
+            _inventoryGrid.Rows.Add(
+                inv.ItemId,
+                item?.Name ?? $"Unknown ({itemId})",
+                item?.Category ?? "",
+                inv.Quantity
+            );
+        }
+    }
+
+    // ── Save Helpers
 
     private void SaveMainSave()
     {
@@ -683,12 +792,14 @@ public class MainForm : Form
         // Editable columns: Realm(0), FamilyName(1), Name(2), QiSense(4), God(5), Roots(6),
         //   Talent(7), Chance(8), Building(9), Herbs(10), Mining(11), Hunting(12),
         //   Taming(13), External(14), Alchemy(15), Weapon(16), Position(17), Task(18)
-        int[] editableModelCols = { 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+        int[] editableModelCols = { 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 23, 24, 25, 26, 27, 28 };
         // Corresponding grid column names (skipping grade columns which are read-only)
         string[] editableGridCols = {
             "Realm", "FamilyName", "Name", "QiSense", "God", "Roots",
             "Talent", "Chance", "Building", "Herbs", "Mining", "Hunting",
-            "Taming", "External", "Alchemy", "Weapon", "Position", "Task"
+            "Taming", "External", "Alchemy", "Weapon", "Position", "Task",
+            "BuildTalent", "HerbsTalent", "MineTalent", "HuntTalent",
+            "TameTalent", "ExternalTalent", "DanTalent", "WeaponTalent"
         };
 
         for (int i = 0; i < _disciples.Count && i < _disciplesGrid.Rows.Count; i++)
@@ -768,7 +879,21 @@ public class MainForm : Form
         LifestoneParser.Save(path, _lifestones);
     }
 
-    // ── Utilities ─────────────────────────────────────────────────────────────
+    private void SaveInventory()
+    {
+        string path = SlotFile("svwp.dat");
+        if (!File.Exists(path)) return;
+
+        for (int i = 0; i < _inventory.Count && i < _inventoryGrid.Rows.Count; i++)
+        {
+            string? qty = _inventoryGrid.Rows[i].Cells["Quantity"].Value?.ToString();
+            if (qty != null) _inventory[i].SetSub(0, 1, qty);
+        }
+
+        InventoryParser.Save(path, _inventory);
+    }
+
+    // ── Utilities
 
     private void SetStatus(string message, bool error = false)
     {

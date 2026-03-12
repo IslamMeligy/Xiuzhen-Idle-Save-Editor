@@ -172,6 +172,42 @@ public class DiscipleParserTests
             Assert.Equal("Wei", disciples[0].Name);
             Assert.Equal("85", disciples[0].QiSense);
             Assert.Equal("90", disciples[0].Talent);
+
+            // Skill talent fields (positions 21-28)
+            Assert.Equal("1", disciples[0].BuildTalent);
+            Assert.Equal("2", disciples[0].HerbsTalent);
+            Assert.Equal("3", disciples[0].MineTalent);
+            Assert.Equal("4", disciples[0].HuntTalent);
+            Assert.Equal("5", disciples[0].TameTalent);
+            Assert.Equal("6", disciples[0].ExternalTalent);
+            Assert.Equal("7", disciples[0].DanTalent);
+            Assert.Equal("8", disciples[0].WeaponTalent);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void SkillTalentGrades_CorrectlyClassified()
+    {
+        string tempFile = Path.GetTempFileName();
+        try
+        {
+            // Craft a line with known talent values at positions 21-28
+            File.WriteAllText(tempFile,
+                "[1],[Wang],[Wei],[uuid001],[85],[72],[63],[90],[45],[3],[5],[7],[4],[6],[8],[9],[10],[2],[1],[0],[0],[15],[35],[55],[85],[120],[145],[10],[100]");
+            var disciples = DiscipleParser.Parse(tempFile);
+            Assert.Single(disciples);
+            Assert.Equal("C", disciples[0].BuildTalentGradeStr);     // 15 -> C
+            Assert.Equal("B", disciples[0].HerbsTalentGradeStr);     // 35 -> B
+            Assert.Equal("A", disciples[0].MineTalentGradeStr);      // 55 -> A
+            Assert.Equal("S", disciples[0].HuntTalentGradeStr);      // 85 -> S
+            Assert.Equal("SS", disciples[0].TameTalentGradeStr);     // 120 -> SS
+            Assert.Equal("SSS", disciples[0].ExternalTalentGradeStr);// 145 -> SSS
+            Assert.Equal("C", disciples[0].DanTalentGradeStr);       // 10 -> C
+            Assert.Equal("S", disciples[0].WeaponTalentGradeStr);    // 100 -> S
         }
         finally
         {
@@ -295,5 +331,160 @@ public class SaveRecordTests
     {
         var rec = new SaveRecord { Id = 1, Values = new List<string> { "1", "1050", "0" } };
         Assert.Equal("[1],[1050],[0]", rec.ToFileLine());
+    }
+}
+
+public class ItemDatabaseTests
+{
+    [Fact]
+    public void LoadEmbedded_ReturnsNonEmptyDatabase()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        Assert.True(db.All.Count > 0);
+    }
+
+    [Fact]
+    public void GetById_KnownItem_ReturnsCorrectRecord()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        var item = db.GetById(1);
+        Assert.NotNull(item);
+        Assert.Equal("Sun Grass", item.Name);
+        Assert.Equal("Gathering", item.Category);
+        Assert.Equal(1, item.Tier);
+    }
+
+    [Fact]
+    public void GetById_UnknownId_ReturnsNull()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        Assert.Null(db.GetById(99999));
+    }
+
+    [Fact]
+    public void GetName_KnownId_ReturnsName()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        Assert.Equal("Basalt Ore", db.GetName(16));
+    }
+
+    [Fact]
+    public void GetName_UnknownId_ReturnsFallback()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        Assert.Equal("Unknown (99999)", db.GetName(99999));
+    }
+
+    [Fact]
+    public void ByCategory_ReturnsMatchingItems()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        var gathering = db.ByCategory("Gathering").ToList();
+        Assert.True(gathering.Count > 0);
+        Assert.All(gathering, i => Assert.Equal("Gathering", i.Category));
+    }
+
+    [Fact]
+    public void GetById_SoulItem_ReturnsCorrectRecord()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        var soul = db.GetById(111);
+        Assert.NotNull(soul);
+        Assert.Equal("Wild Boar Beast Soul", soul.Name);
+        Assert.Equal("Souls", soul.Category);
+    }
+
+    [Fact]
+    public void GetById_BreakthroughMaterial_ReturnsCorrectRecord()
+    {
+        var db = ItemDatabase.LoadEmbedded();
+        var item = db.GetById(481);
+        Assert.NotNull(item);
+        Assert.Equal("Chakra Herb", item.Name);
+        Assert.Equal("Breakthrough Material", item.Category);
+    }
+}
+
+public class InventoryParserTests
+{
+    [Fact]
+    public void Parse_ValidLine_ReturnsInventoryRecord()
+    {
+        string tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[42,100]");
+            var items = InventoryParser.Parse(tempFile);
+            Assert.Single(items);
+            Assert.Equal("42", items[0].ItemId);
+            Assert.Equal("100", items[0].Quantity);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void Parse_MultipleLines_ReturnsAllRecords()
+    {
+        string tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[1,50]\n[16,25]\n[91,10]");
+            var items = InventoryParser.Parse(tempFile);
+            Assert.Equal(3, items.Count);
+            Assert.Equal("1",  items[0].ItemId);
+            Assert.Equal("16", items[1].ItemId);
+            Assert.Equal("91", items[2].ItemId);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void Parse_EmptyFile_ReturnsEmptyList()
+    {
+        string tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "");
+            var items = InventoryParser.Parse(tempFile);
+            Assert.Empty(items);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void InventoryRecord_ToFileLine_RoundTrip()
+    {
+        var inv = new InventoryRecord();
+        inv.Groups.Add(new List<string> { "42", "100" });
+        Assert.Equal("[42,100]", inv.ToFileLine());
+    }
+
+    [Fact]
+    public void Save_RoundTrip_PreservesValues()
+    {
+        string tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, "[42,100]");
+            var items = InventoryParser.Parse(tempFile);
+            items[0].SetSub(0, 1, "200");
+            InventoryParser.Save(tempFile, items);
+
+            var reloaded = InventoryParser.Parse(tempFile);
+            Assert.Equal("200", reloaded[0].Quantity);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 }
